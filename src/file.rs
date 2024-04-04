@@ -76,6 +76,10 @@ impl<'a> ElfFile<'a> {
         let file_data = self.data();
 
         for header in program_headers {
+            if header.header_type != 0x1 {
+                continue;
+            }
+
             let start = header.v_addr as usize;
 
             let mut ptr = &mut base[start] as *mut u8;
@@ -95,14 +99,14 @@ impl<'a> ElfFile<'a> {
         let section_headers = self.section_headers();
 
         for header in section_headers {
-            if header.header_type != 0x4 {
+            if header.header_type != 0x2 {
                 continue;
             }
 
             let start_file = self.data.as_ptr() as usize + header.offset as usize;
             let num = header.size as usize / header.entry_size as usize;
 
-            let sections = unsafe { slice::from_raw_parts(start_file as *mut RelocatableSection, num) };
+            let sections = unsafe { slice::from_raw_parts(start_file as *mut RelocationSection, num) };
 
             for section in sections {
                 unsafe {
@@ -144,7 +148,7 @@ pub struct SectionHeader {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(packed)]
-pub struct RelocatableSection {
+pub struct RelocationSection {
     pub offset: usize,
     pub info: usize,
     pub addend: usize,

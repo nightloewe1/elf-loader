@@ -1,7 +1,7 @@
 use std::fs::OpenOptions;
 use std::io::Read;
 use std::slice;
-use elf_loader::{ElfFile, RelocatableSection};
+use elf_loader::{ElfFile, RelocationSection};
 
 fn main() {
     let mut file = OpenOptions::new().read(true).open("./kernel").expect("Unable to open file");
@@ -32,7 +32,7 @@ fn main() {
         let start_file = elf.data().as_ptr() as usize + header.offset as usize;
         let num = header.size as usize / header.entry_size as usize;
 
-        let sections = unsafe { slice::from_raw_parts(start_file as *mut RelocatableSection, num) };
+        let sections = unsafe { slice::from_raw_parts(start_file as *mut RelocationSection, num) };
 
         for section in sections {
             let offset = section.offset;
