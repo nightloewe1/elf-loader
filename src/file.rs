@@ -130,7 +130,7 @@ impl<'a> ElfFile<'a> {
         let section_headers = self.section_headers();
 
         for header in section_headers {
-            if header.header_type != 0x2 {
+            if header.header_type != 0x4 {
                 continue;
             }
 
