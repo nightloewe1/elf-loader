@@ -12,6 +12,7 @@ impl<'a> ElfFile<'a> {
         }
     }
 
+    /// Returns true if the elf file magic is valid
     pub fn is_valid(&self) -> bool {
         if self.data.len() < 4 {
             return false;
@@ -26,6 +27,7 @@ impl<'a> ElfFile<'a> {
         true
     }
 
+    /// Returns the entrypoint address
     pub fn entrypoint(&self) -> usize {
         usize::from_le_bytes(self.data[24..32].try_into().unwrap())
     }
@@ -39,6 +41,7 @@ impl<'a> ElfFile<'a> {
         )
     }
 
+    /// Returns a slice of the program headers
     pub fn program_headers(&self) -> &[ProgramHeader] {
         let (ptr, size, num) = self.program_header_table();
         let end = ptr + num as usize * size as usize;
@@ -49,6 +52,7 @@ impl<'a> ElfFile<'a> {
         data
     }
 
+    /// Returns the section header table pointer, size of an entry and the number of entries
     fn section_header_table(&self) -> (usize, u16, u16) {
         (
             usize::from_le_bytes(self.data[40..48].try_into().unwrap()),
@@ -57,6 +61,7 @@ impl<'a> ElfFile<'a> {
         )
     }
 
+    /// Returns a slice of the section headers
     pub fn section_headers(&self) -> &[SectionHeader] {
         let (ptr, size, num) = self.section_header_table();
         let end = ptr + num as usize * size as usize;
@@ -67,10 +72,35 @@ impl<'a> ElfFile<'a> {
         data
     }
 
+    /// Returns a reference to the elf file data
     pub fn data(&'a self) -> &'a [u8] {
         return self.data
     }
 
+    /// Returns the length in bytes required to load all loadable segments into memory
+    pub fn load_segments_len(&self) -> usize {
+        let program_headers = self.program_headers();
+
+        let mut start = usize::MAX;
+        let mut end = usize::MIN;
+
+        for header in program_headers {
+            let segment_end = header.v_addr + header.memory_size;
+
+            if (header.v_addr as usize) < start {
+                start = header.v_addr as usize;
+            }
+
+            if (segment_end as usize) > end {
+                end = segment_end as usize;
+            }
+        }
+
+        end - start
+    }
+
+
+    /// Loads all PT_LOAD segments into memory starting at base
     pub fn load(&self, base: &mut [u8]) {
         let program_headers = self.program_headers();
         let file_data = self.data();
@@ -95,6 +125,7 @@ impl<'a> ElfFile<'a> {
         }
     }
 
+    /// Applies the relocations necessary for the elf file to work
     pub fn relocate(&self, base: &mut [u8]) {
         let section_headers = self.section_headers();
 
@@ -110,7 +141,7 @@ impl<'a> ElfFile<'a> {
 
             for section in sections {
                 unsafe {
-                    let mut ptr = base.as_mut_ptr().add(section.offset) as *mut u64;
+                    let ptr = base.as_mut_ptr().add(section.offset) as *mut u64;
                     *ptr = base.as_ptr() as u64 + section.addend as u64;
                 }
             }
